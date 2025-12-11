@@ -1,5 +1,0 @@
-[gd_resource type="FmodPluginsSettings" format=3 uid="uid://cnmyyrntc5chx"]
-
-[resource]
-plugins_base_path = "res://fmodproject/plugins"
-dynamic_plugin_list = PackedStringArray("phonon_fmod")

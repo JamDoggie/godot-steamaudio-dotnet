@@ -1,9 +1,0 @@
-[gd_resource type="StandardMaterial3D" script_class="SteamAudioMaterialScript" load_steps=3 format=3 uid="uid://c47ur2bckgmus"]
-
-[ext_resource type="Resource" uid="uid://djdw2rc3efhsb" path="res://materials/steamaudio/wood.tres" id="1_atyh7"]
-[ext_resource type="Script" uid="uid://dhfcmkfe85yj" path="res://addons/steam-audio-cs-plugin/steamaudio/resource/SteamAudioMaterialScript.cs" id="2_at4r2"]
-
-[resource]
-albedo_color = Color(0.37, 0.21768335, 0.12950002, 1)
-script = ExtResource("2_at4r2")
-SteamAudioMaterial = ExtResource("1_atyh7")

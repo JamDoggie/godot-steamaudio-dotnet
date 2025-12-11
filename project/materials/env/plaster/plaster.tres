@@ -1,9 +1,0 @@
-[gd_resource type="StandardMaterial3D" script_class="SteamAudioMaterialScript" load_steps=3 format=3 uid="uid://bxsowqg5b8wdf"]
-
-[ext_resource type="Resource" uid="uid://c20ul0j00k472" path="res://materials/steamaudio/plaster.tres" id="1_r2h0p"]
-[ext_resource type="Script" uid="uid://dhfcmkfe85yj" path="res://addons/steam-audio-cs-plugin/steamaudio/resource/SteamAudioMaterialScript.cs" id="2_ta4k3"]
-
-[resource]
-albedo_color = Color(0.31431612, 0.31431612, 0.3143161, 1)
-script = ExtResource("2_ta4k3")
-SteamAudioMaterial = ExtResource("1_r2h0p")
