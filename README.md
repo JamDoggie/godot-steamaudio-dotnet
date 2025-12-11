@@ -15,6 +15,14 @@ This repository contains an example project with everything you need to figure o
 [https://www.youtube.com/watch?v=u51iJlPK1KE](https://www.youtube.com/watch?v=u51iJlPK1KE)
 [![Demonstration of the plugin](https://i.gyazo.com/880fc48094e9d0812eec7ee32acd803b.png)](https://www.youtube.com/watch?v=u51iJlPK1KE)
 
+## Usage
+You'll need to grab both the Steam Audio library itself, and the Steam Audio fmod plugin from [Valve's website](https://valvesoftware.github.io/steam-audio/downloads.html).
+Put the following files in the following directories:
+
+- phonon.dll & its sibling files (GpuUtilities.dll, etc.) in the root of your godot project
+- The steam audio fmod files from the zip into your fmod project's Plugins folder, so it looks like the following: Plugins/steamaudio_fmod/lib/(platform, ex windows-x64)/phonon_fmod.dll
+- You'll need to also point the FMOD integration in Godot to the plugin file. In the example project, it expects it at fmodproject/plugins/windows/phonon_fmod.dll
+
 ## Implementation
 Below is a list of all the Steam Audio features that this plugin implements:
 - Reflections
