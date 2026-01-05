@@ -319,6 +319,14 @@ namespace SteamAudioDotnet.scripts.nativelib
 
         public void InitSteamAudio(bool bakingInstance = false)
         {
+#if (GODOT_ANDROID || GODOT_IOS)
+            if (SceneType != SceneType.Default)
+            {
+                GD.PushWarning("SceneType variable is " + SceneType.ToString() + ", Android does not support OpenCL. as well as the raytracing methods Embree or RadeonRays, changing SceneType to Default, Steam Audio's raytracing method");
+                SceneType = SceneType.Default;
+            }
+#endif
+
             // We initialize a bit differently if this instance is for baking.
             if (!bakingInstance)
             {
@@ -410,27 +418,30 @@ namespace SteamAudioDotnet.scripts.nativelib
             }
             #endregion
 
-            EmbreeDeviceSettings embreeDeviceSettings = new()
-            {
-                
-            };
 
-            error = API.iplEmbreeDeviceCreate(Context, ref embreeDeviceSettings, out EmbreeDevicePointer);
-
-            #region Embree device error checking
-            if (error != Error.Success)
+            if (SceneType == SceneType.Embree)
             {
-                GD.PrintErr("Failed to create Steam Audio Embree Device: " + error);
-                return;
+                EmbreeDeviceSettings embreeDeviceSettings = new()
+                {
+
+                };
+
+                error = API.iplEmbreeDeviceCreate(Context, ref embreeDeviceSettings, out EmbreeDevicePointer);
+
+                #region Embree device error checking
+                if (error != Error.Success)
+                {
+                    GD.PrintErr("Failed to create Steam Audio Embree Device: " + error);
+                    return;
+                }
+
+                if (EmbreeDevicePointer == IntPtr.Zero)
+                {
+                    GD.PrintErr("Steam Audio Embree Device handle is null... somehow.");
+                    return;
+                }
+                #endregion
             }
-
-            if (EmbreeDevicePointer == IntPtr.Zero)
-            {
-                GD.PrintErr("Steam Audio Embree Device handle is null... somehow.");
-                return;
-            }
-            #endregion
-
             SceneSettings sceneSettings = new()
             {
                 type = SceneType,
@@ -438,7 +449,9 @@ namespace SteamAudioDotnet.scripts.nativelib
                 userData = IntPtr.Zero
             };
 
-            bool openCLSuccess = AttemptOpenCLInit(Context, ref sceneSettings);
+            bool openCLSuccess = false;
+#if !GODOT_ANDROID && !GODOT_IOS
+            openCLSuccess = AttemptOpenCLInit(Context, ref sceneSettings);
 
             if (openCLSuccess)
             {
@@ -450,8 +463,9 @@ namespace SteamAudioDotnet.scripts.nativelib
             }
             else if (SceneType == SceneType.RadeonRays)
             {
-                SceneType = SceneType.Embree;
+                SceneType = SceneType.Default;
             }
+#endif
 
             IntPtr scene = IntPtr.Zero;
             error = API.iplSceneCreate(Context, ref sceneSettings, out scene);

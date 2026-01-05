@@ -899,7 +899,22 @@ namespace SteamAudio
 
     public static class API
     {
+
+#if GODOT_WINDOWS
         public const string Library = "phonon.dll";
+#endif
+#if GODOT_LINUXBSD
+        public const string Library = "libphonon.so";
+#endif
+#if GODOT_ANDROID
+        public const string Library = "libphonon.so";
+#endif
+#if GODOT_IOS
+        public const string Library = "libphonon_fmod.a";
+#endif
+#if GODOT_OSX
+        public const string Library = "libphonon.dylib";
+#endif
 
         // Context
 
