@@ -322,7 +322,7 @@ namespace SteamAudioDotnet.scripts.nativelib
 #if (GODOT_ANDROID || GODOT_IOS)
             if (SceneType != SceneType.Default)
             {
-                GD.PushWarning("SceneType variable is " + SceneType.ToString() + ", Android does not support OpenCL. as well as the raytracing methods Embree or RadeonRays, changing SceneType to Default, Steam Audio's raytracing method");
+                GD.PushWarning($"{nameof(SceneType)} is {SceneType}, Android does not support OpenCL, Embree, or RadeonRays. Switching to default.");
                 SceneType = SceneType.Default;
             }
 #endif
