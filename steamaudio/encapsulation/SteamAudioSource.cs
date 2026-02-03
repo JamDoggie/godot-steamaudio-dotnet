@@ -48,7 +48,6 @@ namespace SteamAudioDotnet.scripts.steamaudio.encapsulation
             {
                 if (flagsToSimulate.HasFlag(SimulationFlags.Pathing))
                 {
-                    GD.PrintErr("No pathing data loaded; cannot simulate pathing for source.");
                     return;
                 }
             }

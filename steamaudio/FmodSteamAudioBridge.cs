@@ -101,7 +101,11 @@ namespace SteamAudioDotnet.scripts.nativelib
         public static FmodSteamAudioBridge? Singleton = null;
 
         public static object AudioSourcesLock = new();
+        public static object AudioSourceCreationLock = new();
         public volatile bool SimulationStarting = false;
+
+        private Queue<Variant> FMODSourceCreateEvents = new();
+        private Queue<Variant> FMODSourceDeleteEvents = new();
 
         /// <summary>
         /// NOTE: Lock AudioSourcesLock while enumerating this list.
@@ -315,6 +319,14 @@ namespace SteamAudioDotnet.scripts.nativelib
 
         public void InitSteamAudio(bool bakingInstance = false)
         {
+#if (GODOT_ANDROID || GODOT_IOS)
+            if (SceneType != SceneType.Default)
+            {
+                GD.PushWarning($"{nameof(SceneType)} is {SceneType}, Android does not support OpenCL, Embree, or RadeonRays. Switching to default.");
+                SceneType = SceneType.Default;
+            }
+#endif
+
             // We initialize a bit differently if this instance is for baking.
             if (!bakingInstance)
             {
@@ -406,27 +418,30 @@ namespace SteamAudioDotnet.scripts.nativelib
             }
             #endregion
 
-            EmbreeDeviceSettings embreeDeviceSettings = new()
-            {
-                
-            };
 
-            error = API.iplEmbreeDeviceCreate(Context, ref embreeDeviceSettings, out EmbreeDevicePointer);
-
-            #region Embree device error checking
-            if (error != Error.Success)
+            if (SceneType == SceneType.Embree)
             {
-                GD.PrintErr("Failed to create Steam Audio Embree Device: " + error);
-                return;
+                EmbreeDeviceSettings embreeDeviceSettings = new()
+                {
+
+                };
+
+                error = API.iplEmbreeDeviceCreate(Context, ref embreeDeviceSettings, out EmbreeDevicePointer);
+
+                #region Embree device error checking
+                if (error != Error.Success)
+                {
+                    GD.PrintErr("Failed to create Steam Audio Embree Device: " + error);
+                    return;
+                }
+
+                if (EmbreeDevicePointer == IntPtr.Zero)
+                {
+                    GD.PrintErr("Steam Audio Embree Device handle is null... somehow.");
+                    return;
+                }
+                #endregion
             }
-
-            if (EmbreeDevicePointer == IntPtr.Zero)
-            {
-                GD.PrintErr("Steam Audio Embree Device handle is null... somehow.");
-                return;
-            }
-            #endregion
-
             SceneSettings sceneSettings = new()
             {
                 type = SceneType,
@@ -434,7 +449,9 @@ namespace SteamAudioDotnet.scripts.nativelib
                 userData = IntPtr.Zero
             };
 
-            bool openCLSuccess = AttemptOpenCLInit(Context, ref sceneSettings);
+            bool openCLSuccess = false;
+#if !GODOT_ANDROID && !GODOT_IOS
+            openCLSuccess = AttemptOpenCLInit(Context, ref sceneSettings);
 
             if (openCLSuccess)
             {
@@ -446,8 +463,9 @@ namespace SteamAudioDotnet.scripts.nativelib
             }
             else if (SceneType == SceneType.RadeonRays)
             {
-                SceneType = SceneType.Embree;
+                SceneType = SceneType.Default;
             }
+#endif
 
             IntPtr scene = IntPtr.Zero;
             error = API.iplSceneCreate(Context, ref sceneSettings, out scene);
@@ -709,12 +727,18 @@ namespace SteamAudioDotnet.scripts.nativelib
 
         public unsafe void FMODEventCreated(Variant var)
         {
-            CallDeferred(nameof(FmodEventCreatedTask), var);
+            lock (AudioSourceCreationLock)
+            {
+                FMODSourceCreateEvents.Enqueue(var);
+            }
         }
 
         public void FMODEventRemoved(Variant var)
         {
-            CallDeferred(nameof(FmodEventDeletedTask), var);
+            lock (AudioSourceCreationLock)
+            {
+                FMODSourceDeleteEvents.Enqueue(var);
+            }
         }
         
         public void FMODPlayOneShotGuid(string guid)
@@ -730,7 +754,6 @@ namespace SteamAudioDotnet.scripts.nativelib
                 return;
             }
 
-           
             byte[] ptrBytes = (byte[])var;
 
             nint ptr = bytesToPtr(ptrBytes);
@@ -773,24 +796,24 @@ namespace SteamAudioDotnet.scripts.nativelib
 
             nint ptr = bytesToPtr(ptrBytes);
 
-            foreach (SteamAudioSource source in ActiveSources)
+            lock (SteamAudioCollectionsLock)
             {
-                if (source.FmodSourceHandle == null || source.FmodEvent == null)
-                    continue;
-
-                nint sourcePtr = source.FmodEvent.Value.handle;
-
-                if (sourcePtr == ptr)
+                foreach (SteamAudioSource source in ActiveSources)
                 {
-                    API.iplSourceRemove(source.Ptr, Simulator);
-                    SteamFmodApi.iplFMODRemoveSource(source.FmodSourceHandle.Value);
+                    if (source.FmodSourceHandle == null || source.FmodEvent == null)
+                        continue;
 
-                    lock (SteamAudioCollectionsLock)
+                    nint sourcePtr = source.FmodEvent.Value.handle;
+
+                    if (sourcePtr == ptr)
                     {
-                        ActiveSources.Remove(source);
-                    }
+                        API.iplSourceRemove(source.Ptr, Simulator);
+                        SteamFmodApi.iplFMODRemoveSource(source.FmodSourceHandle.Value);
 
-                    break;
+                        ActiveSources.Remove(source);
+
+                        break;
+                    }
                 }
             }
         }
@@ -932,10 +955,11 @@ namespace SteamAudioDotnet.scripts.nativelib
             FirstProcessHappened = true;
         }
 
-        private List<SteamAudioSource> threadAudioSources = new();
-
         public void RunSimulation()
         {
+            List<Variant> eventsToCreate = new();
+            List<Variant> eventsToDelete = new();
+
             while (simulationThreadRunning)
             {
                 Thread.Sleep(1);
@@ -946,14 +970,32 @@ namespace SteamAudioDotnet.scripts.nativelib
                 if (Context == IntPtr.Zero || Simulator == IntPtr.Zero)
                     continue;
 
-                threadAudioSources.Clear();
+                eventsToCreate.Clear();
+                eventsToDelete.Clear();
 
-                lock (SteamAudioCollectionsLock)
+                lock (AudioSourceCreationLock)
                 {
-                    foreach (SteamAudioSource source in ActiveSources)
+                    while (FMODSourceCreateEvents.Count > 0)
                     {
-                        threadAudioSources.Add(source);
+                        Variant var = FMODSourceCreateEvents.Dequeue();
+                        eventsToCreate.Add(var);
                     }
+
+                    while (FMODSourceDeleteEvents.Count > 0)
+                    {
+                        Variant var = FMODSourceDeleteEvents.Dequeue();
+                        eventsToDelete.Add(var);
+                    }
+                }
+
+                foreach (Variant var in eventsToCreate)
+                {
+                    FmodEventCreatedTask(var);
+                }
+
+                foreach (Variant var in eventsToDelete)
+                {
+                    FmodEventDeletedTask(var);
                 }
 
                 // Run all queued commits
@@ -981,11 +1023,14 @@ namespace SteamAudioDotnet.scripts.nativelib
                 // Run direct
                 API.iplSimulatorSetSharedInputs(Simulator, SimulationFlags.Direct, ref SharedInputs);
 
-                foreach (SteamAudioSource source in threadAudioSources)
+                lock (SteamAudioCollectionsLock)
                 {
-                    source.UpdateSourceInputs(this, Simulator, SimulationFlags.Direct);
+                    foreach (SteamAudioSource source in ActiveSources)
+                    {
+                        source.UpdateSourceInputs(this, Simulator, SimulationFlags.Direct);
+                    }
                 }
-
+                
                 lock (SteamAudioSimulationLock)
                 {
                     API.iplSimulatorRunDirect(Simulator);
@@ -994,11 +1039,14 @@ namespace SteamAudioDotnet.scripts.nativelib
                 // Run reflections
                 API.iplSimulatorSetSharedInputs(Simulator, SimulationFlags.Reflections, ref SharedInputs);
 
-                foreach (SteamAudioSource source in threadAudioSources)
+                lock (SteamAudioCollectionsLock)
                 {
-                    source.UpdateSourceInputs(this, Simulator, SimulationFlags.Reflections);
+                    foreach (SteamAudioSource source in ActiveSources)
+                    {
+                        source.UpdateSourceInputs(this, Simulator, SimulationFlags.Reflections);
+                    }
                 }
-
+                
                 if (ReverbListenerSource != null && ReverbListenerSource.IsValid)
                 {
                     ReverbListenerSource.UpdateSourceInputs(this, Simulator, SimulationFlags.Reflections);
@@ -1014,11 +1062,14 @@ namespace SteamAudioDotnet.scripts.nativelib
                 {
                     API.iplSimulatorSetSharedInputs(Simulator, SimulationFlags.Pathing, ref SharedInputs);
 
-                    foreach (SteamAudioSource source in threadAudioSources)
+                    lock (SteamAudioCollectionsLock)
                     {
-                        source.UpdateSourceInputs(this, Simulator, SimulationFlags.Pathing);
+                        foreach (SteamAudioSource source in ActiveSources)
+                        {
+                            source.UpdateSourceInputs(this, Simulator, SimulationFlags.Pathing);
+                        }
                     }
-
+                    
                     lock (SteamAudioSimulationLock)
                     {
                         API.iplSimulatorRunPathing(Simulator);
