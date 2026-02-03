@@ -45,7 +45,6 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
                 lock (FmodSteamAudioBridge.AudioSourcesLock)
                     FmodSteamAudioBridge.StaticAudioSources.Add(this);
             }
-                
         }
 
         public override void _ExitTree()
@@ -55,7 +54,6 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
                 lock (FmodSteamAudioBridge.AudioSourcesLock)
                     FmodSteamAudioBridge.StaticAudioSources.Remove(this);
             }
-                
         }
     }
 }

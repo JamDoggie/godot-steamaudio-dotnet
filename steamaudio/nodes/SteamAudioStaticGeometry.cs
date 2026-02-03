@@ -23,47 +23,6 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
 
         private List<MeshInstance3D> childrenMeshes = new();
 
-        public override string[] _GetConfigurationWarnings()
-        {
-            Array<Node> children = GetChildren();
-
-            bool hasCollisionShape = false;
-            bool hasMultipleShapes = false;
-
-            foreach (Node child in children)
-            {
-                if (child is MeshInstance3D)
-                {
-                    if (hasCollisionShape)
-                    {
-                        hasMultipleShapes = true;
-                        break;
-                    }
-
-                    hasCollisionShape = true;
-                }
-            }
-
-            if (!hasCollisionShape)
-            {
-                return
-                [
-                    $"{GetType().Name} node has no {nameof(MeshInstance3D)} children. " +
-                    "Static geometry requires a collision shape to function properly." 
-                ];
-            }
-            else if (hasMultipleShapes)
-            {
-                return
-                [
-                    $"{GetType().Name} node cannot have more than one {nameof(MeshInstance3D)} children. " +
-                    "Static geometry requires a single collision shape to function properly."
-                ];
-            }
-
-            return [];
-        }
-
         public override void _Ready()
         {
             if (AutoInitialize && !Engine.IsEditorHint())

@@ -104,6 +104,8 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
 
         private volatile List<nint> staticMeshes = new();
 
+        private static SteamAudioBakeResults? bakeResults = null;
+
         // Unmanaged pointers
         private nint probeBatchPtr = nint.Zero;
 
@@ -190,7 +192,7 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
                 return;
             }
 
-            SteamAudioBakeResults? bakeResults = GD.Load<SteamAudioBakeResults>(BakeResultsSavePath);
+            bakeResults = GD.Load<SteamAudioBakeResults>(BakeResultsSavePath);
 
             if (bakeResults == null)
             {
