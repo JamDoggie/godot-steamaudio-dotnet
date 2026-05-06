@@ -64,9 +64,6 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
 
         public void SetupCollision(FmodSteamAudioBridge? steamAudio)
         {
-            if (Networking.Server != null)
-                return;
-
             #region Initial error checking
             if (steamAudio == null)
             {
