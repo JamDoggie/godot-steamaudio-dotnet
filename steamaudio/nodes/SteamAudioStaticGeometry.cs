@@ -130,10 +130,13 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
 
                 SteamAudioMeshPtrs.Add(meshPtr);
 
-                API.iplStaticMeshAdd(meshPtr, scene);
+                lock (steamAudio.SteamAudioSimulationLock)
+                {
+                    API.iplStaticMeshAdd(meshPtr, scene);
+                }
 
                 steamAudio.QueueSceneCommit();
-
+                
                 GD.Print("Successfully added Steam Audio static mesh for " +
                     $"{GetType().Name} node to scene.");
             }

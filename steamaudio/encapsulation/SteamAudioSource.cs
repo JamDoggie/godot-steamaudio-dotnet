@@ -36,7 +36,7 @@ namespace SteamAudioDotnet.scripts.steamaudio.encapsulation
         { 
             if (Ptr != nint.Zero)
             {
-                API.iplSourceRelease(ref Ptr);
+               API.iplSourceRelease(ref Ptr);
             }
         }
 

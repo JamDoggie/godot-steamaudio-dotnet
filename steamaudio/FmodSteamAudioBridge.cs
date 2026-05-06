@@ -129,8 +129,8 @@ namespace SteamAudioDotnet.scripts.nativelib
 
         public bool BakedDataLoaded => AudioBaker != null;
 
-        internal bool SceneCommitQueued = false;
-        internal bool SimulatorCommitQueued = false;
+        internal volatile bool SceneCommitQueued = false;
+        internal volatile bool SimulatorCommitQueued = false;
 
         internal SimulationFlags SimFlags = SimulationFlags.Direct | SimulationFlags.Reflections | SimulationFlags.Pathing;
         internal SimulationFlags SourceFlags = SimulationFlags.Direct | SimulationFlags.Reflections | SimulationFlags.Pathing;
@@ -212,7 +212,8 @@ namespace SteamAudioDotnet.scripts.nativelib
 
                 Thread simulationThread = new(RunSimulation)
                 {
-                    IsBackground = true
+                    IsBackground = true,
+                    Name = "Steam Audio Simulation Thread"
                 };
 
                 simulationThreadRunning = true;
@@ -561,6 +562,16 @@ namespace SteamAudioDotnet.scripts.nativelib
                 }
             }
 
+            SharedInputs = new()
+            {
+                numRays = MaxReflectionRays,
+                numBounces = 4,
+                duration = 1.0f,
+                order = 2,
+                irradianceMinDistance = 1.0f,
+                pathingUserData = IntPtr.Zero
+            };
+
             // Final commit
             API.iplSimulatorCommit(Simulator);
 
@@ -725,7 +736,7 @@ namespace SteamAudioDotnet.scripts.nativelib
             }
         }
 
-        public unsafe void FMODEventCreated(Variant var)
+        public void FMODEventCreated(Variant var)
         {
             lock (AudioSourceCreationLock)
             {
@@ -921,22 +932,12 @@ namespace SteamAudioDotnet.scripts.nativelib
 
             Transform3D transform = ListenerNode.GlobalTransform;
 
-            SharedInputs = new()
-            {
-                numRays = MaxReflectionRays,
-                numBounces = 4,
-                duration = 1.0f,
-                order = 2,
-                irradianceMinDistance = 1.0f,
-                pathingUserData = IntPtr.Zero
-            };
-
             SharedInputs.listener.ahead = IplVector(transform * Vector3.Forward);
             SharedInputs.listener.right = IplVector(transform * Vector3.Right);
             SharedInputs.listener.up = IplVector(transform * Vector3.Up);
             SharedInputs.listener.origin = IplVector(transform.Origin);
 
-            lock (SteamAudioCollectionsLock)
+            /*lock (SteamAudioCollectionsLock)
             {
                 foreach (SteamAudioSource source in ActiveSources)
                 {
@@ -950,7 +951,7 @@ namespace SteamAudioDotnet.scripts.nativelib
                         source.UpdateCustomOcclusion(occlusionValue);
                     }
                 }
-            }
+            }*/
 
             FirstProcessHappened = true;
         }
@@ -962,8 +963,6 @@ namespace SteamAudioDotnet.scripts.nativelib
 
             while (simulationThreadRunning)
             {
-                Thread.Sleep(1);
-
                 if (!simulationThreadRunning)
                     break;
 
@@ -1001,21 +1000,21 @@ namespace SteamAudioDotnet.scripts.nativelib
                 // Run all queued commits
                 if (FirstProcessHappened)
                 {
-                    if (SimulatorCommitQueued)
-                    {
-                        lock (SteamAudioSimulationLock)
-                        {
-                            API.iplSimulatorCommit(Simulator);
-                            SimulatorCommitQueued = false;
-                        }
-                    }
-
                     if (SceneCommitQueued)
                     {
                         lock (SteamAudioSimulationLock)
                         {
                             API.iplSceneCommit(Scene);
                             SceneCommitQueued = false;
+                        }
+                    }
+
+                    if (SimulatorCommitQueued)
+                    {
+                        lock (SteamAudioSimulationLock)
+                        {
+                            API.iplSimulatorCommit(Simulator);
+                            SimulatorCommitQueued = false;
                         }
                     }
                 }

@@ -4,7 +4,10 @@ extends Node
 @export
 var SteamAudioBridge : FmodSteamAudioBridge
 
-func event_created(event):
+func dummy_callback(type : int, event : FmodEvent):
+	pass
+
+func event_created(event : FmodEvent):
 	if SteamAudioBridge != null:
 		SteamAudioBridge.FMODEventCreated(event.get_event_pointer())
 	
