@@ -16,31 +16,33 @@
 
 // https://github.com/ValveSoftware/steam-audio
 
-using System.Runtime.InteropServices;
 using SteamAudio;
+using System;
+using System.Runtime.InteropServices;
 
 namespace SteamAudioDotnet.scripts.steamaudio
 {
-    internal class SteamFmodApi
+    public static class SteamFmodApi
     {
         // FMOD STUDIO PLUGIN
-        [DllImport("phonon_fmod")]
-        public static extern void iplFMODInitialize(nint context);
 
         [DllImport("phonon_fmod")]
-        public static extern void iplFMODSetHRTF(nint hrtf);
+        public static extern void iplFMODInitialize(IntPtr context);
+
+        [DllImport("phonon_fmod")]
+        public static extern void iplFMODSetHRTF(IntPtr hrtf);
 
         [DllImport("phonon_fmod")]
         public static extern void iplFMODSetSimulationSettings(SimulationSettings simulationSettings);
 
         [DllImport("phonon_fmod")]
-        public static extern void iplFMODSetReverbSource(nint reverbSource);
+        public static extern void iplFMODSetReverbSource(IntPtr reverbSource);
 
         [DllImport("phonon_fmod")]
         public static extern void iplFMODTerminate();
 
         [DllImport("phonon_fmod")]
-        public static extern int iplFMODAddSource(nint source);
+        public static extern int iplFMODAddSource(IntPtr source);
 
         [DllImport("phonon_fmod")]
         public static extern void iplFMODRemoveSource(int handle);

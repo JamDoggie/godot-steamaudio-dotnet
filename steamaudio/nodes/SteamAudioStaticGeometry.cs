@@ -64,6 +64,9 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
 
         public void SetupCollision(FmodSteamAudioBridge? steamAudio)
         {
+            if (Networking.Server != null)
+                return;
+
             #region Initial error checking
             if (steamAudio == null)
             {
@@ -133,9 +136,10 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
                 lock (steamAudio.SteamAudioSimulationLock)
                 {
                     API.iplStaticMeshAdd(meshPtr, scene);
+                    API.iplSceneCommit(scene);
                 }
 
-                steamAudio.QueueSceneCommit();
+                //steamAudio.QueueSceneCommit();
                 
                 GD.Print("Successfully added Steam Audio static mesh for " +
                     $"{GetType().Name} node to scene.");

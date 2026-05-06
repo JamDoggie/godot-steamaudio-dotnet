@@ -650,16 +650,16 @@ namespace SteamAudioDotnet.scripts.nativelib
             // https://valvesoftware.github.io/steam-audio/doc/capi/opencl.html#_CPPv4N23IPLOpenCLDeviceSettings22fractionCUsForIRUpdateE
             OpenCLDeviceSettings openClSettings = new()
             {
-                Type = OpenCLDeviceType.GPU,
-                NumCUsToReserve = 0, // 0 = can use all available CUs.
-                FractionCUsForIRUpdate = 0.5f,
+                type = OpenCLDeviceType.GPU,
+                numCUsToReserve = 0, // 0 = can use all available CUs.
+                fractionCUsForIRUpdate = 0.5f,
             };
 
-            openClSettings.RequiresTAN = UseTrueAudioNext;
+            openClSettings.requiresTAN = UseTrueAudioNext ? Bool.True : Bool.False;
 
             // Get list of acceptable OpenCL devices.
-            OpenCLDeviceList deviceList = new(IntPtr.Zero);
-            Error error = API.iplOpenCLDeviceListCreate(Context, in openClSettings, out deviceList);
+            nint deviceListHandle = IntPtr.Zero;
+            Error error = API.iplOpenCLDeviceListCreate(Context, ref openClSettings, out deviceListHandle);
 
             if (error != Error.Success)
             {
@@ -672,7 +672,7 @@ namespace SteamAudioDotnet.scripts.nativelib
             try
             {
                 // Make sure we have at least one valid OpenCL device.
-                int numDevices = API.iplOpenCLDeviceListGetNumDevices(deviceList.Handle);
+                int numDevices = API.iplOpenCLDeviceListGetNumDevices(deviceListHandle);
 
                 if (numDevices == 0)
                 {
@@ -682,7 +682,7 @@ namespace SteamAudioDotnet.scripts.nativelib
                     return false;
                 }
 
-                error = API.iplOpenCLDeviceCreate(Context, deviceList.Handle, 0, out OpenCLDevicePointer);
+                error = API.iplOpenCLDeviceCreate(Context, deviceListHandle, 0, out OpenCLDevicePointer);
 
                 if (error != Error.Success)
                 {
@@ -696,7 +696,6 @@ namespace SteamAudioDotnet.scripts.nativelib
             }
             finally
             {
-                nint deviceListHandle = deviceList.Handle;
                 API.iplOpenCLDeviceListRelease(ref deviceListHandle);
             }
 
@@ -1000,21 +999,21 @@ namespace SteamAudioDotnet.scripts.nativelib
                 // Run all queued commits
                 if (FirstProcessHappened)
                 {
-                    if (SceneCommitQueued)
-                    {
-                        lock (SteamAudioSimulationLock)
-                        {
-                            API.iplSceneCommit(Scene);
-                            SceneCommitQueued = false;
-                        }
-                    }
-
                     if (SimulatorCommitQueued)
                     {
                         lock (SteamAudioSimulationLock)
                         {
                             API.iplSimulatorCommit(Simulator);
                             SimulatorCommitQueued = false;
+                        }
+                    }
+
+                    if (SceneCommitQueued)
+                    {
+                        lock (SteamAudioSimulationLock)
+                        {
+                            API.iplSceneCommit(Scene);
+                            SceneCommitQueued = false;
                         }
                     }
                 }

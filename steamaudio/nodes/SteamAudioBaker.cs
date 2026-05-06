@@ -429,7 +429,7 @@ namespace SteamAudioDotnet.scripts.steamaudio.nodes
             {
                 scene = steamAudio.Scene,
                 sceneType = SimulatorRenderer,
-                bakeFlags = ReflectionTypeFlags,
+                flags = ReflectionTypeFlags,
                 numRays = NumRays,
                 numDiffuseSamples = NumDiffuseSamples,
                 numBounces = Bounces,

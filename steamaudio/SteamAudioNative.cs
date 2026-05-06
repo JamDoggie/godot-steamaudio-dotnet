@@ -14,44 +14,19 @@
 // limitations under the License.
 //
 
-// https://github.com/ValveSoftware/steam-audio
-
-using Godot;
 using System;
 using System.Runtime.InteropServices;
 
 namespace SteamAudio
 {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public readonly partial struct OpenCLDeviceList : IEquatable<OpenCLDeviceList>
-    {
-        private readonly nint _handle;
-
-        public OpenCLDeviceList(nint handle) => _handle = handle;
-
-        public nint Handle => _handle;
-
-        public bool Equals(OpenCLDeviceList other) => _handle.Equals(other._handle);
-
-        public override bool Equals(object obj) => obj is OpenCLDeviceList other && Equals(other);
-
-        public override int GetHashCode() => _handle.GetHashCode();
-
-        public override string ToString() => "0x" + (nint.Size == 8 ? _handle.ToString("X16") : _handle.ToString("X8"));
-
-        public static bool operator ==(OpenCLDeviceList left, OpenCLDeviceList right) => left.Equals(right);
-
-        public static bool operator !=(OpenCLDeviceList left, OpenCLDeviceList right) => !left.Equals(right);
-    }
-
     // CONSTANTS
 
     public static class Constants
     {
         public const uint kVersionMajor = 4;
-        public const uint kVersionMinor = 7;
-        public const uint kVersionPatch = 0;
-        public const uint kVersion = kVersionMajor << 16 | kVersionMinor << 8 | kVersionPatch;
+        public const uint kVersionMinor = 8;
+        public const uint kVersionPatch = 1;
+        public const uint kVersion = (kVersionMajor << 16) | (kVersionMinor << 8) | kVersionPatch;
     }
 
     // ENUMERATIONS
@@ -95,7 +70,7 @@ namespace SteamAudio
         Force32Bit = 0x7fffffff
     }
 
-    public enum OpenCLDeviceType : int
+    public enum OpenCLDeviceType
     {
         Any,
         CPU,
@@ -107,6 +82,9 @@ namespace SteamAudio
         Default,
         Embree,
         RadeonRays,
+#if UNITY_2019_2_OR_NEWER
+        [InspectorName("Unity")]
+#endif
         Custom
     }
 
@@ -219,63 +197,53 @@ namespace SteamAudio
         TrueAudioNext
     }
 
-    /// <summary>
-    /// Flags for specifying what types of reflections data to bake.
-    /// </summary>
     [Flags]
-    public enum ReflectionsBakeFlags : int
+    public enum ReflectionsBakeFlags
     {
-        /// <summary>
-        /// Bake impulse responses for @c IPL_REFLECTIONEFFECTTYPE_CONVOLUTION, @c IPL_REFLECTIONEFFECTTYPE_HYBRID, or @c IPL_REFLECTIONEFFECTTYPE_TAN.
-        /// </summary>
-        BakeConvolution = unchecked((int)1 << (int)0),
-
-        /// <summary>
-        /// Bake parametric reverb for @c IPL_REFLECTIONEFFECTTYPE_PARAMETRIC or @c IPL_REFLECTIONEFFECTTYPE_HYBRID.
-        /// </summary>
-        BakeParametric = unchecked((int)1 << (int)1),
+        BakeConvolution = 1 << 0,
+        BakeParametric = 1 << 1
     }
 
     // CALLBACKS
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate void ProgressCallback(float progress, nint userData);
+    public delegate void ProgressCallback(float progress, IntPtr userData);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     public delegate void LogCallback(LogLevel level, string message);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate nint AllocateCallback(nuint size, nuint alignment);
+    public delegate IntPtr AllocateCallback(UIntPtr size, UIntPtr alignment);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate void FreeCallback(nint memoryBlock);
+    public delegate void FreeCallback(IntPtr memoryBlock);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate void ClosestHitCallback(ref Ray ray, float minDistance, float maxDistance, out Hit hit, nint userData);
+    public delegate void ClosestHitCallback(ref Ray ray, float minDistance, float maxDistance, out Hit hit, IntPtr userData);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate void AnyHitCallback(ref Ray ray, float minDistance, float maxDistance, out byte occluded, nint userData);
+    public delegate void AnyHitCallback(ref Ray ray, float minDistance, float maxDistance, out byte occluded, IntPtr userData);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate void BatchedClosestHitCallback(int numRays, Ray[] rays, float[] minDistances, float[] maxDistances, [Out] Hit[] hits, nint userData);
+    public delegate void BatchedClosestHitCallback(int numRays, Ray[] rays, float[] minDistances, float[] maxDistances, [Out] Hit[] hits, IntPtr userData);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate void BatchedAnyHitCallback(int numRays, Ray[] rays, float[] minDistances, float[] maxDistances, [Out] byte[] occluded, nint userData);
+    public delegate void BatchedAnyHitCallback(int numRays, Ray[] rays, float[] minDistances, float[] maxDistances, [Out] byte[] occluded, IntPtr userData);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate float DistanceAttenuationCallback(float distance, nint userData);
+    public delegate float DistanceAttenuationCallback(float distance, IntPtr userData);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate float AirAbsorptionCallback(float distance, int band, nint userData);
+    public delegate float AirAbsorptionCallback(float distance, int band, IntPtr userData);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate float DeviationCallback(float angle, int band, nint userData);
+    public delegate float DeviationCallback(float angle, int band, IntPtr userData);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate float DirectivityCallback(Vector3 direction, nint userData);
+    public delegate float DirectivityCallback(Vector3 direction, IntPtr userData);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    public delegate void PathingVisualizationCallback(Vector3 from, Vector3 to, Bool occluded, nint userData);
+    public delegate void PathingVisualizationCallback(Vector3 from, Vector3 to, Bool occluded, IntPtr userData);
 
     // STRUCTURES
 
@@ -347,70 +315,30 @@ namespace SteamAudio
     [StructLayout(LayoutKind.Sequential)]
     public struct SerializedObjectSettings
     {
-        public nint data;
-        public nuint size;
+        public IntPtr data;
+        public UIntPtr size;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct EmbreeDeviceSettings { }
 
-    /// <summary>
-    /// Specifies requirements that an OpenCL device must meet in order to be considered when listing
-    /// OpenCL devices.
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public partial struct OpenCLDeviceSettings
+    [StructLayout(LayoutKind.Sequential)]
+    public struct OpenCLDeviceSettings
     {
-        /// <summary>
-        /// The type of device. Set to @c IPL_OPENCLDEVICETYPE_ANY to consider all available devices.
-        /// </summary>
-        public OpenCLDeviceType Type;
-
-        /// <summary>
-        /// The number of GPU compute units (CUs) that should be reserved for use by Steam Audio. If set to a
-        /// non-zero value, then a GPU will be included in the device list only if it can reserve at least
-        /// this many CUs. Set to 0 to indicate that Steam Audio can use the entire GPU, in which case all
-        /// available GPUs will be considered.
-        /// </summary>
-        /// <remarks>
-        /// Ignored if @c type is @c IPL_OPENCLDEVICETYPE_CPU.
-        /// </remarks>
-        public int NumCUsToReserve;
-
-        /// <summary>
-        /// The fraction of reserved CUs that should be used for impulse response (IR) update. IR update
-        /// includes: a) ray tracing using Radeon Rays to simulate sound propagation, and/or b) pre-transformation
-        /// of IRs for convolution using TrueAudio Next. Steam Audio will only list GPU devices that are able
-        /// to subdivide the reserved CUs as per this value. The value must be between 0 and 1.
-        /// </summary>
-        /// <remarks>
-        /// For example, if @c numCUsToReserve is @c 8, and @c fractionCUsForIRUpdate is @c 0.5f, then 4 CUs
-        /// will be used for IR update and 4 CUs will be used for convolution. Below are typical scenarios:-   Using only TrueAudio Next. Set @c fractionCUsForIRUpdate to @c 0.5f. This ensures that reserved
-        /// CUs are available for IR update as well as convolution.-   Using TrueAudio Next and Radeon Rays for real-time simulation and rendering. Choosing
-        /// @c fractionCUsForIRUpdate may require some experimentation to utilize reserved CUs optimally. You
-        /// can start by setting @c fractionCUsForIRUpdate to @c 0.5f. However, if IR calculation has high
-        /// latency with these settings, increase @c fractionCUsForIRUpdate to use more CUs for ray tracing.-   Using only Radeon Rays. Set @c fractionCUsForIRUpdate to @c 1, to make sure all the reserved CUs
-        /// are used for ray tracing. If using Steam Audio for preprocessing (e.g. baking reverb), then
-        /// consider setting @c numCUsToReserve to @c 0 to use the entire GPU for accelerated ray tracing.Ignored if @c type is @c IPL_OPENCLDEVICETYPE_CPU or @c numCUsToReserve is @c 0.
-        /// </remarks>
-        public float FractionCUsForIRUpdate;
-
-        /// <summary>
-        /// If @c IPL_TRUE, then the GPU device must support TrueAudio Next. It is not necessary to set this
-        /// to @c IPL_TRUE if @c numCUsToReserve or @c fractionCUsForIRUpdate are set to non-zero values.
-        /// </summary>
-        [MarshalAs(UnmanagedType.U1)]
-        public bool RequiresTAN;
+        public OpenCLDeviceType type;
+        public int numCUsToReserve;
+        public float fractionCUsForIRUpdate;
+        public Bool requiresTAN;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct OpenCLDeviceDesc
     {
-        public nint platform;
+        public IntPtr platform;
         public string platformName;
         public string platformVendor;
         public string platformVersion;
-        public nint device;
+        public IntPtr device;
         public string deviceName;
         public string deviceVendor;
         public string deviceVersion;
@@ -468,7 +396,7 @@ namespace SteamAudio
         public int objectIndex;
         public int materialIndex;
         public Vector3 normal;
-        public nint material;
+        public IntPtr material;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -479,9 +407,9 @@ namespace SteamAudio
         public AnyHitCallback anyHitCallback;
         public BatchedClosestHitCallback batchedClosestHitCallback;
         public BatchedAnyHitCallback batchedAnyHitCallback;
-        public nint userData;
-        public nint embreeDevice;
-        public nint radeonRaysDevice;
+        public IntPtr userData;
+        public IntPtr embreeDevice;
+        public IntPtr radeonRaysDevice;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -490,16 +418,16 @@ namespace SteamAudio
         public int numVertices;
         public int numTriangles;
         public int numMaterials;
-        public nint vertices;
-        public nint triangles;
-        public nint materialIndices;
-        public nint materials;
+        public IntPtr vertices;
+        public IntPtr triangles;
+        public IntPtr materialIndices;
+        public IntPtr materials;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct InstancedMeshSettings
     {
-        public nint subScene;
+        public IntPtr subScene;
         public Matrix4x4 transform;
     }
 
@@ -515,7 +443,7 @@ namespace SteamAudio
     {
         public HRTFType type;
         public string sofaFileName;
-        public nint sofaFileData;
+        public IntPtr sofaFileData;
         public int sofaFileDataSize;
         public float volume;
         public HRTFNormType normType;
@@ -530,146 +458,42 @@ namespace SteamAudio
         public Matrix4x4 transform;
     }
 
-    /// <summary>
-    /// Identifies a "layer" of data stored in a probe batch. Each probe batch may store multiple layers of data,
-    /// such as reverb, static source reflections, or pathing. Each layer can be accessed using an identifier.
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public partial struct BakedDataIdentifier
+    [StructLayout(LayoutKind.Sequential)]
+    [Serializable]
+    public struct BakedDataIdentifier
     {
-        /// <summary>
-        /// The type of data stored.
-        /// </summary>
         public BakedDataType type;
-
-        /// <summary>
-        /// The way in which source and listener positions depend on probe position.
-        /// </summary>
         public BakedDataVariation variation;
-
-        /// <summary>
-        /// The static source (for @c IPL_BAKEDDATAVARIATION_STATICSOURCE) or static listener (for
-        /// @c IPL_BAKEDDATAVARIATION_STATICLISTENER) used to generate baked data. Baked data is only stored for
-        /// probes that lie within the radius of this sphere.
-        /// </summary>
         public Sphere endpointInfluence;
     }
 
-    /// <summary>
-    /// Parameters used to control how reflections data is baked.
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public partial struct ReflectionsBakeParams
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ReflectionsBakeParams
     {
-        /// <summary>
-        /// The scene in which the probes exist.
-        /// </summary>
-        public nint scene;
-
-        /// <summary>
-        /// A probe batch containing the probes at which reflections data should be baked.
-        /// </summary>
-        public nint probeBatch;
-
-        /// <summary>
-        /// The type of scene being used.
-        /// </summary>
+        public IntPtr scene;
+        public IntPtr probeBatch;
         public SceneType sceneType;
-
-        /// <summary>
-        /// An identifier for the data layer that should be baked. The identifier determines what data is simulated and
-        /// stored at each probe. If the probe batch already contains data with this identifier, it will be overwritten.
-        /// </summary>
         public BakedDataIdentifier identifier;
-
-        /// <summary>
-        /// The types of data to save for each probe.
-        /// </summary>
-        public ReflectionsBakeFlags bakeFlags;
-
-        /// <summary>
-        /// The number of rays to trace from each listener position when baking. Increasing this number results in
-        /// improved accuracy, at the cost of increased bake times.
-        /// </summary>
+        public ReflectionsBakeFlags flags;
         public int numRays;
-
-        /// <summary>
-        /// The number of directions to consider when generating diffusely-reflected rays when baking. Increasing
-        /// this number results in slightly improved accuracy of diffuse reflections.
-        /// </summary>
         public int numDiffuseSamples;
-
-        /// <summary>
-        /// The number of times each ray is reflected off of solid geometry. Increasing this number results in
-        /// longer reverb tails and improved accuracy, at the cost of increased bake times.
-        /// </summary>
         public int numBounces;
-
-        /// <summary>
-        /// The length (in seconds) of the impulse responses to simulate. Increasing this number allows the baked
-        /// data to represent longer reverb tails (and hence larger spaces), at the cost of increased memory
-        /// usage while baking.
-        /// </summary>
         public float simulatedDuration;
-
-        /// <summary>
-        /// The length (in seconds) of the impulse responses to save at each probe. Increasing this number allows
-        /// the baked data to represent longer reverb tails (and hence larger spaces), at the cost of increased
-        /// disk space usage and memory usage at run-time.
-        /// </summary>
-        /// <remarks>
-        /// It may be useful to set @c savedDuration to be less than @c simulatedDuration, especially if you plan
-        /// to use hybrid reverb for rendering baked reflections. This way, the parametric reverb data is
-        /// estimated using a longer IR, resulting in more accurate estimation, but only the early part of the IR
-        /// can be saved for subsequent rendering.
-        /// </remarks>
         public float savedDuration;
-
-        /// <summary>
-        /// Ambisonic order of the baked IRs.
-        /// </summary>
         public int order;
-
-        /// <summary>
-        /// Number of threads to use for baking.
-        /// </summary>
         public int numThreads;
-
-        /// <summary>
-        /// If using custom ray tracer callbacks, this the number of rays that will be passed to the callbacks
-        /// every time rays need to be traced.
-        /// </summary>
         public int rayBatchSize;
-
-        /// <summary>
-        /// When calculating how much sound energy reaches a surface directly from a source, any source that is
-        /// closer than @c irradianceMinDistance to the surface is assumed to be at a distance of
-        /// @c irradianceMinDistance, for the purposes of energy calculations.
-        /// </summary>
         public float irradianceMinDistance;
-
-        /// <summary>
-        /// If using Radeon Rays or if @c identifier.variation is @c IPL_BAKEDDATAVARIATION_STATICLISTENER, this is the
-        /// number of probes for which data is baked simultaneously.
-        /// </summary>
         public int bakeBatchSize;
-
-        /// <summary>
-        /// The OpenCL device, if using Radeon Rays.
-        /// </summary>
-        public nint openCLDevice;
-
-        /// <summary>
-        /// The Radeon Rays device, if using Radeon Rays.
-        /// </summary>
-        public nint radeonRaysDevice;
+        public IntPtr openCLDevice;
+        public IntPtr radeonRaysDevice;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct PathBakeParams
     {
-        public nint scene;
-        public nint probeBatch;
+        public IntPtr scene;
+        public IntPtr probeBatch;
         public BakedDataIdentifier identifier;
         public int numSamples;
         public float radius;
@@ -685,7 +509,7 @@ namespace SteamAudio
         public DistanceAttenuationModelType type;
         public float minDistance;
         public DistanceAttenuationCallback callback;
-        public nint userData;
+        public IntPtr userData;
         public Bool dirty;
     }
 
@@ -697,7 +521,7 @@ namespace SteamAudio
         public float coefficientsMid;
         public float coefficientsHigh;
         public AirAbsorptionCallback callback;
-        public nint userData;
+        public IntPtr userData;
         public Bool dirty;
     }
 
@@ -707,15 +531,15 @@ namespace SteamAudio
         public float dipoleWeight;
         public float dipolePower;
         public DirectivityCallback callback;
-        public nint userData;
+        public IntPtr userData;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct DeviationModel
     {
         public DeviationModelType type;
-        public nint callback;
-        public nint userData;
+        public IntPtr callback;
+        public IntPtr userData;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -735,9 +559,9 @@ namespace SteamAudio
         public int numVisSamples;
         public int samplingRate;
         public int frameSize;
-        public nint openCLDevice;
-        public nint radeonRaysDevice;
-        public nint tanDevice;
+        public IntPtr openCLDevice;
+        public IntPtr radeonRaysDevice;
+        public IntPtr tanDevice;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -765,7 +589,7 @@ namespace SteamAudio
         public float hybridReverbOverlapPercent;
         public Bool baked;
         public BakedDataIdentifier bakedDataIdentifier;
-        public nint pathingProbes;
+        public IntPtr pathingProbes;
         public float visRadius;
         public float visThreshold;
         public float visRange;
@@ -773,7 +597,7 @@ namespace SteamAudio
         public Bool enableValidation;
         public Bool findAlternatePaths;
         public int numTransmissionRays;
-        public nint deviationModel;
+        public IntPtr deviationModel;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -786,7 +610,7 @@ namespace SteamAudio
         public int order;
         public float irradianceMinDistance;
         public PathingVisualizationCallback pathingVisualizationCallback;
-        public nint pathingUserData;
+        public IntPtr pathingUserData;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -809,7 +633,7 @@ namespace SteamAudio
     public struct ReflectionEffectParams
     {
         public ReflectionEffectType type;
-        public nint ir;
+        public IntPtr ir;
         public float reverbTimesLow;
         public float reverbTimesMid;
         public float reverbTimesHigh;
@@ -819,7 +643,7 @@ namespace SteamAudio
         public int delay;
         public int numChannels;
         public int irSize;
-        public nint tanDevice;
+        public IntPtr tanDevice;
         public int tanSlot;
     }
 
@@ -829,10 +653,10 @@ namespace SteamAudio
         public float eqCoeffsLow;
         public float eqCoeffsMid;
         public float eqCoeffsHigh;
-        public nint shCoeffs;
+        public IntPtr shCoeffs;
         public int order;
         public Bool binaural;
-        public nint hrtf;
+        public IntPtr hrtf;
         public CoordinateSpace3 listener;
     }
 
@@ -879,7 +703,7 @@ namespace SteamAudio
     [StructLayout(LayoutKind.Sequential)]
     public struct ReconstructorInputs
     {
-        public nint energyField;
+        public IntPtr energyField;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -892,14 +716,13 @@ namespace SteamAudio
     [StructLayout(LayoutKind.Sequential)]
     public struct ReconstructorOutputs
     {
-        public nint impulseResponse;
+        public IntPtr impulseResponse;
     }
 
     // FUNCTIONS
 
     public static class API
     {
-
 #if GODOT_WINDOWS
         public const string Library = "phonon.dll";
 #endif
@@ -923,21 +746,21 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplContextCreate(ref ContextSettings settings, out nint context);
+        public static extern Error iplContextCreate(ref ContextSettings settings, out IntPtr context);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplContextRetain(nint context);
+        public static extern IntPtr iplContextRetain(IntPtr context);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplContextRelease(ref nint context);
+        public static extern void iplContextRelease(ref IntPtr context);
 
         // Geometry
 
@@ -946,7 +769,7 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Vector3 iplCalculateRelativeDirection(nint context, Vector3 sourcePosition, Vector3 listenerPosition, Vector3 listenerAhead, Vector3 listenerUp);
+        public static extern Vector3 iplCalculateRelativeDirection(IntPtr context, Vector3 sourcePosition, Vector3 listenerPosition, Vector3 listenerAhead, Vector3 listenerUp);
 
         // Serialization
 
@@ -955,35 +778,35 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplSerializedObjectCreate(nint context, ref SerializedObjectSettings settings, out nint serializedObject);
+        public static extern Error iplSerializedObjectCreate(IntPtr context, ref SerializedObjectSettings settings, out IntPtr serializedObject);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplSerializedObjectRetain(nint serializedObject);
+        public static extern IntPtr iplSerializedObjectRetain(IntPtr serializedObject);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSerializedObjectRelease(ref nint serializedObject);
+        public static extern void iplSerializedObjectRelease(ref IntPtr serializedObject);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nuint iplSerializedObjectGetSize(nint serializedObject);
+        public static extern UIntPtr iplSerializedObjectGetSize(IntPtr serializedObject);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplSerializedObjectGetData(nint serializedObject);
+        public static extern IntPtr iplSerializedObjectGetData(IntPtr serializedObject);
 
         // Embree
 
@@ -992,74 +815,79 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplEmbreeDeviceCreate(nint context, ref EmbreeDeviceSettings settings, out nint device);
+        public static extern Error iplEmbreeDeviceCreate(IntPtr context, ref EmbreeDeviceSettings settings, out IntPtr device);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplEmbreeDeviceRetain(nint device);
+        public static extern IntPtr iplEmbreeDeviceRetain(IntPtr device);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplEmbreeDeviceRelease(ref nint device);
+        public static extern void iplEmbreeDeviceRelease(ref IntPtr device);
 
         // OpenCL
-        [DllImport(Library, EntryPoint = "iplOpenCLDeviceListCreate", CallingConvention=CallingConvention.Cdecl)]
-        public static extern Error iplOpenCLDeviceListCreate(nint context, in OpenCLDeviceSettings settings, out OpenCLDeviceList deviceList);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplOpenCLDeviceListRetain(nint deviceList);
+        public static extern Error iplOpenCLDeviceListCreate(IntPtr context, ref OpenCLDeviceSettings settings, out IntPtr deviceList);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplOpenCLDeviceListRelease(ref nint deviceList);
+        public static extern IntPtr iplOpenCLDeviceListRetain(IntPtr deviceList);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern int iplOpenCLDeviceListGetNumDevices(nint deviceList);
+        public static extern void iplOpenCLDeviceListRelease(ref IntPtr deviceList);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplOpenCLDeviceListGetDeviceDesc(nint deviceList, int index, out OpenCLDeviceDesc deviceDesc);
+        public static extern int iplOpenCLDeviceListGetNumDevices(IntPtr deviceList);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplOpenCLDeviceCreate(nint context, nint deviceList, int index, out nint device);
+        public static extern void iplOpenCLDeviceListGetDeviceDesc(IntPtr deviceList, int index, out OpenCLDeviceDesc deviceDesc);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplOpenCLDeviceRetain(nint device);
+        public static extern Error iplOpenCLDeviceCreate(IntPtr context, IntPtr deviceList, int index, out IntPtr device);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplOpenCLDeviceRelease(ref nint device);
+        public static extern IntPtr iplOpenCLDeviceRetain(IntPtr device);
+
+#if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
+        [DllImport("__Internal")]
+#else
+        [DllImport(Library)]
+#endif
+        public static extern void iplOpenCLDeviceRelease(ref IntPtr device);
 
         // Radeon Rays
 
@@ -1068,21 +896,21 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplRadeonRaysDeviceCreate(nint openCLDevice, ref RadeonRaysDeviceSettings settings, out nint rrDevice);
+        public static extern Error iplRadeonRaysDeviceCreate(IntPtr openCLDevice, ref RadeonRaysDeviceSettings settings, out IntPtr rrDevice);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplRadeonRaysDeviceRetain(nint device);
+        public static extern IntPtr iplRadeonRaysDeviceRetain(IntPtr device);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplRadeonRaysDeviceRelease(ref nint device);
+        public static extern void iplRadeonRaysDeviceRelease(ref IntPtr device);
 
         // TrueAudio Next
 
@@ -1091,21 +919,21 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplTrueAudioNextDeviceCreate(nint openCLDevice, ref TrueAudioNextDeviceSettings settings, out nint tanDevice);
+        public static extern Error iplTrueAudioNextDeviceCreate(IntPtr openCLDevice, ref TrueAudioNextDeviceSettings settings, out IntPtr tanDevice);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplTrueAudioNextDeviceRetain(nint device);
+        public static extern IntPtr iplTrueAudioNextDeviceRetain(IntPtr device);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplTrueAudioNextDeviceRelease(ref nint device);
+        public static extern void iplTrueAudioNextDeviceRelease(ref IntPtr device);
 
         // Scene
 
@@ -1114,140 +942,140 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplSceneCreate(nint context, ref SceneSettings settings, out nint scene);
+        public static extern Error iplSceneCreate(IntPtr context, ref SceneSettings settings, out IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplSceneRetain(nint scene);
+        public static extern IntPtr iplSceneRetain(IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSceneRelease(ref nint scene);
+        public static extern void iplSceneRelease(ref IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplSceneLoad(nint context, ref SceneSettings settings, nint serializedObject, ProgressCallback progressCallback, nint progressCallbackUserData, out nint scene);
+        public static extern Error iplSceneLoad(IntPtr context, ref SceneSettings settings, IntPtr serializedObject, ProgressCallback progressCallback, IntPtr progressCallbackUserData, out IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSceneSave(nint scene, nint serializedObject);
+        public static extern void iplSceneSave(IntPtr scene, IntPtr serializedObject);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSceneSaveOBJ(nint scene, string fileBaseName);
+        public static extern void iplSceneSaveOBJ(IntPtr scene, string fileBaseName);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSceneCommit(nint scene);
+        public static extern void iplSceneCommit(IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplStaticMeshCreate(nint scene, ref StaticMeshSettings settings, out nint staticMesh);
+        public static extern Error iplStaticMeshCreate(IntPtr scene, ref StaticMeshSettings settings, out IntPtr staticMesh);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplStaticMeshRetain(nint staticMesh);
+        public static extern IntPtr iplStaticMeshRetain(IntPtr staticMesh);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplStaticMeshRelease(ref nint staticMesh);
+        public static extern void iplStaticMeshRelease(ref IntPtr staticMesh);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplStaticMeshLoad(nint scene, nint serializedObject, ProgressCallback progressCallback, nint progressCallbackUserData, out nint staticMesh);
+        public static extern Error iplStaticMeshLoad(IntPtr scene, IntPtr serializedObject, ProgressCallback progressCallback, IntPtr progressCallbackUserData, out IntPtr staticMesh);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplStaticMeshSave(nint staticMesh, nint serializedObject);
+        public static extern void iplStaticMeshSave(IntPtr staticMesh, IntPtr serializedObject);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplStaticMeshAdd(nint staticMesh, nint scene);
+        public static extern void iplStaticMeshAdd(IntPtr staticMesh, IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplStaticMeshRemove(nint staticMesh, nint scene);
+        public static extern void iplStaticMeshRemove(IntPtr staticMesh, IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplInstancedMeshCreate(nint scene, ref InstancedMeshSettings settings, out nint instancedMesh);
+        public static extern Error iplInstancedMeshCreate(IntPtr scene, ref InstancedMeshSettings settings, out IntPtr instancedMesh);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplInstancedMeshRetain(nint instancedMesh);
+        public static extern IntPtr iplInstancedMeshRetain(IntPtr instancedMesh);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplInstancedMeshRelease(ref nint instancedMesh);
+        public static extern void iplInstancedMeshRelease(ref IntPtr instancedMesh);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplInstancedMeshAdd(nint instancedMesh, nint scene);
+        public static extern void iplInstancedMeshAdd(IntPtr instancedMesh, IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplInstancedMeshRemove(nint instancedMesh, nint scene);
+        public static extern void iplInstancedMeshRemove(IntPtr instancedMesh, IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplInstancedMeshUpdateTransform(nint instancedMesh, nint scene, Matrix4x4 transform);
+        public static extern void iplInstancedMeshUpdateTransform(IntPtr instancedMesh, IntPtr scene, Matrix4x4 transform);
 
         // HRTF
 
@@ -1256,21 +1084,21 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplHRTFCreate(nint context, ref AudioSettings audioSettings, ref HRTFSettings hrtfSettings, out nint hrtf);
+        public static extern Error iplHRTFCreate(IntPtr context, ref AudioSettings audioSettings, ref HRTFSettings hrtfSettings, out IntPtr hrtf);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplHRTFRetain(nint hrtf);
+        public static extern IntPtr iplHRTFRetain(IntPtr hrtf);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplHRTFRelease(ref nint hrtf);
+        public static extern void iplHRTFRelease(ref IntPtr hrtf);
 
         // Probes
 
@@ -1279,166 +1107,170 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplProbeArrayCreate(nint context, out nint probeArray);
+        public static extern Error iplProbeArrayCreate(IntPtr context, out IntPtr probeArray);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplProbeArrayRetain(nint probeArray);
+        public static extern IntPtr iplProbeArrayRetain(IntPtr probeArray);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeArrayRelease(ref nint probeArray);
+        public static extern void iplProbeArrayRelease(ref IntPtr probeArray);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeArrayGenerateProbes(nint probeArray, nint scene, ref ProbeGenerationParams generationParams);
+        public static extern void iplProbeArrayGenerateProbes(IntPtr probeArray, IntPtr scene, ref ProbeGenerationParams generationParams);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern int iplProbeArrayGetNumProbes(nint probeArray);
+        public static extern int iplProbeArrayGetNumProbes(IntPtr probeArray);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern Sphere iplProbeArrayGetProbe(nint probeArray, int index);
+        public static extern Sphere iplProbeArrayGetProbe(IntPtr probeArray, int index);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplProbeBatchCreate(nint context, out nint probeBatch);
+        public static extern Error iplProbeBatchCreate(IntPtr context, out IntPtr probeBatch);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplProbeBatchRetain(nint probeBatch);
+        public static extern IntPtr iplProbeBatchRetain(IntPtr probeBatch);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeBatchRelease(ref nint probeBatch);
+        public static extern void iplProbeBatchRelease(ref IntPtr probeBatch);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplProbeBatchLoad(nint context, nint serializedObject, out nint probeBatch);
+        public static extern Error iplProbeBatchLoad(IntPtr context, IntPtr serializedObject, out IntPtr probeBatch);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeBatchSave(nint probeBatch, nint serializedObject);
+        public static extern void iplProbeBatchSave(IntPtr probeBatch, IntPtr serializedObject);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern int iplProbeBatchGetNumProbes(nint probeBatch);
+        public static extern int iplProbeBatchGetNumProbes(IntPtr probeBatch);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeBatchAddProbe(nint probeBatch, Sphere probe);
+        public static extern void iplProbeBatchAddProbe(IntPtr probeBatch, Sphere probe);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeBatchAddProbeArray(nint probeBatch, nint probeArray);
+        public static extern void iplProbeBatchAddProbeArray(IntPtr probeBatch, IntPtr probeArray);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeBatchRemoveProbe(nint probeBatch, int index);
+        public static extern void iplProbeBatchRemoveProbe(IntPtr probeBatch, int index);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeBatchCommit(nint probeBatch);
+        public static extern void iplProbeBatchCommit(IntPtr probeBatch);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeBatchRemoveData(nint probeBatch, ref BakedDataIdentifier identifier);
+        public static extern void iplProbeBatchRemoveData(IntPtr probeBatch, ref BakedDataIdentifier identifier);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nuint iplProbeBatchGetDataSize(nint probeBatch, ref BakedDataIdentifier identifier);
+        public static extern UIntPtr iplProbeBatchGetDataSize(IntPtr probeBatch, ref BakedDataIdentifier identifier);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeBatchGetEnergyField(nint probeBatch, ref BakedDataIdentifier identifier, int probeIndex, nint energyField);
+        public static extern void iplProbeBatchGetEnergyField(IntPtr probeBatch, ref BakedDataIdentifier identifier, int probeIndex, IntPtr energyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplProbeBatchGetReverb(nint probeBatch, ref BakedDataIdentifier identifier, int probeIndex, float[] reverbTimes);
+        public static extern void iplProbeBatchGetReverb(IntPtr probeBatch, ref BakedDataIdentifier identifier, int probeIndex, float[] reverbTimes);
 
         // Baking
 
-        [DllImport(Library, EntryPoint = "iplReflectionsBakerBake", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void iplReflectionsBakerBake(nint context, ref ReflectionsBakeParams bakeParams, ProgressCallback progressCallback, nint userData);
+#if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
+        [DllImport("__Internal")]
+#else
+        [DllImport(Library)]
+#endif
+        public static extern void iplReflectionsBakerBake(IntPtr context, ref ReflectionsBakeParams bakeParams, ProgressCallback progressCallback, IntPtr userData);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplReflectionsBakerCancelBake(nint context);
+        public static extern void iplReflectionsBakerCancelBake(IntPtr context);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplPathBakerBake(nint context, ref PathBakeParams bakeParams, ProgressCallback progressCallback, nint userData);
+        public static extern void iplPathBakerBake(IntPtr context, ref PathBakeParams bakeParams, ProgressCallback progressCallback, IntPtr userData);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplPathBakerCancelBake(nint context);
+        public static extern void iplPathBakerCancelBake(IntPtr context);
 
         // Run-Time Simulation
 
@@ -1447,147 +1279,147 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplSimulatorCreate(nint context, ref SimulationSettings settings, out nint simulator);
+        public static extern Error iplSimulatorCreate(IntPtr context, ref SimulationSettings settings, out IntPtr simulator);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplSimulatorRetain(nint simulator);
+        public static extern IntPtr iplSimulatorRetain(IntPtr simulator);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSimulatorRelease(ref nint simulator);
+        public static extern void iplSimulatorRelease(ref IntPtr simulator);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSimulatorSetScene(nint simulator, nint scene);
+        public static extern void iplSimulatorSetScene(IntPtr simulator, IntPtr scene);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSimulatorAddProbeBatch(nint simulator, nint probeBatch);
+        public static extern void iplSimulatorAddProbeBatch(IntPtr simulator, IntPtr probeBatch);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSimulatorRemoveProbeBatch(nint simulator, nint probeBatch);
+        public static extern void iplSimulatorRemoveProbeBatch(IntPtr simulator, IntPtr probeBatch);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSimulatorSetSharedInputs(nint simulator, SimulationFlags flags, ref SimulationSharedInputs sharedInputs);
+        public static extern void iplSimulatorSetSharedInputs(IntPtr simulator, SimulationFlags flags, ref SimulationSharedInputs sharedInputs);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSimulatorCommit(nint simulator);
+        public static extern void iplSimulatorCommit(IntPtr simulator);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSimulatorRunDirect(nint simulator);
+        public static extern void iplSimulatorRunDirect(IntPtr simulator);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSimulatorRunReflections(nint simulator);
+        public static extern void iplSimulatorRunReflections(IntPtr simulator);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSimulatorRunPathing(nint simulator);
+        public static extern void iplSimulatorRunPathing(IntPtr simulator);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplSourceCreate(nint simulator, ref SourceSettings settings, out nint source);
+        public static extern Error iplSourceCreate(IntPtr simulator, ref SourceSettings settings, out IntPtr source);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplSourceRetain(nint source);
+        public static extern IntPtr iplSourceRetain(IntPtr source);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSourceRelease(ref nint source);
+        public static extern void iplSourceRelease(ref IntPtr source);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSourceAdd(nint source, nint simulator);
+        public static extern void iplSourceAdd(IntPtr source, IntPtr simulator);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSourceRemove(nint source, nint simulator);
+        public static extern void iplSourceRemove(IntPtr source, IntPtr simulator);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSourceSetInputs(nint source, SimulationFlags flags, ref SimulationInputs inputs);
+        public static extern void iplSourceSetInputs(IntPtr source, SimulationFlags flags, ref SimulationInputs inputs);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplSourceGetOutputs(nint source, SimulationFlags flags, ref SimulationOutputs outputs);
+        public static extern void iplSourceGetOutputs(IntPtr source, SimulationFlags flags, ref SimulationOutputs outputs);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern float iplDistanceAttenuationCalculate(nint context, Vector3 source, Vector3 listener, ref DistanceAttenuationModel model);
+        public static extern float iplDistanceAttenuationCalculate(IntPtr context, Vector3 source, Vector3 listener, ref DistanceAttenuationModel model);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplAirAbsorptionCalculate(nint context, Vector3 source, Vector3 listener, ref AirAbsorptionModel mode, float[] minDistances);
+        public static extern void iplAirAbsorptionCalculate(IntPtr context, Vector3 source, Vector3 listener, ref AirAbsorptionModel mode, float[] minDistances);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern float iplDirectivityCalculate(nint context, CoordinateSpace3 source, Vector3 listener, ref Directivity model);
+        public static extern float iplDirectivityCalculate(IntPtr context, CoordinateSpace3 source, Vector3 listener, ref Directivity model);
 
         // Energy Field API
 
@@ -1596,98 +1428,98 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplEnergyFieldCreate(nint context, ref EnergyFieldSettings settings, out nint energyField);
+        public static extern Error iplEnergyFieldCreate(IntPtr context, ref EnergyFieldSettings settings, out IntPtr energyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplEnergyFieldRetain(nint energyField);
+        public static extern IntPtr iplEnergyFieldRetain(IntPtr energyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplEnergyFieldRelease(ref nint energyField);
+        public static extern void iplEnergyFieldRelease(ref IntPtr energyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern int iplEnergyFieldGetNumChannels(nint energyField);
+        public static extern int iplEnergyFieldGetNumChannels(IntPtr energyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern int iplEnergyFieldGetNumBins(nint energyField);
+        public static extern int iplEnergyFieldGetNumBins(IntPtr energyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplEnergyFieldGetData(nint energyField);
+        public static extern IntPtr iplEnergyFieldGetData(IntPtr energyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplEnergyFieldGetChannel(nint energyField, int channelIndex);
+        public static extern IntPtr iplEnergyFieldGetChannel(IntPtr energyField, int channelIndex);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplEnergyFieldGetBand(nint energyField, int channelIndex, int bandIndex);
+        public static extern IntPtr iplEnergyFieldGetBand(IntPtr energyField, int channelIndex, int bandIndex);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplEnergyFieldReset(nint energyField);
+        public static extern void iplEnergyFieldReset(IntPtr energyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplEnergyFieldCopy(nint srcEnergyField, nint dstEnergyField);
+        public static extern void iplEnergyFieldCopy(IntPtr srcEnergyField, IntPtr dstEnergyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplEnergyFieldSwap(nint energyFieldA, nint energyFieldB);
+        public static extern void iplEnergyFieldSwap(IntPtr energyFieldA, IntPtr energyFieldB);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplEnergyFieldAdd(nint energyField1, nint energyField2, nint outEnergyField);
+        public static extern void iplEnergyFieldAdd(IntPtr energyField1, IntPtr energyField2, IntPtr outEnergyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplEnergyFieldScale(nint inEnergyField, float scalar, nint outEnergyField);
+        public static extern void iplEnergyFieldScale(IntPtr inEnergyField, float scalar, IntPtr outEnergyField);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplEnergyFieldScaleAccum(nint inEnergyField, float scalar, nint outEnergyField);
+        public static extern void iplEnergyFieldScaleAccum(IntPtr inEnergyField, float scalar, IntPtr outEnergyField);
 
         // Impulse Response API
 
@@ -1696,90 +1528,90 @@ namespace SteamAudio
 #else
         [DllImport(Library)]
 #endif
-        public static extern Error iplImpulseResponseCreate(nint context, ref ImpulseResponseSettings settings, out nint impulseResponse);
+        public static extern Error iplImpulseResponseCreate(IntPtr context, ref ImpulseResponseSettings settings, out IntPtr impulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplImpulseResponseRetain(nint impulseResponse);
+        public static extern IntPtr iplImpulseResponseRetain(IntPtr impulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplImpulseResponseRelease(ref nint impulseResponse);
+        public static extern void iplImpulseResponseRelease(ref IntPtr impulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern int iplImpulseResponseGetNumChannels(nint impulseResponse);
+        public static extern int iplImpulseResponseGetNumChannels(IntPtr impulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern int iplImpulseResponseGetNumSamples(nint impulseResponse);
+        public static extern int iplImpulseResponseGetNumSamples(IntPtr impulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplImpulseResponseGetData(nint impulseResponse);
+        public static extern IntPtr iplImpulseResponseGetData(IntPtr impulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplImpulseResponseGetChannel(nint impulseResponse, int channelIndex);
+        public static extern IntPtr iplImpulseResponseGetChannel(IntPtr impulseResponse, int channelIndex);
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplImpulseResponseReset(nint impulseResponse);
+        public static extern void iplImpulseResponseReset(IntPtr impulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplImpulseResponseCopy(nint srcImpulseReponse, nint dstImpulseResponse);
+        public static extern void iplImpulseResponseCopy(IntPtr srcImpulseReponse, IntPtr dstImpulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplImpulseResponseSwap(nint impulseResponse1, nint impulseResponse2);
+        public static extern void iplImpulseResponseSwap(IntPtr impulseResponse1, IntPtr impulseResponse2);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplImpulseResponseAdd(nint inImpulseResponse1, nint inImpulseResponse2, nint outImpulseResponse);
+        public static extern void iplImpulseResponseAdd(IntPtr inImpulseResponse1, IntPtr inImpulseResponse2, IntPtr outImpulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplImpulseResponseScale(nint inImpulseResponse, float scalar, nint outImpulseResponse);
+        public static extern void iplImpulseResponseScale(IntPtr inImpulseResponse, float scalar, IntPtr outImpulseResponse);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplImpulseResponseScaleAccum(nint inImpulseRespnse, float scalar, nint outImpulseResponse);
+        public static extern void iplImpulseResponseScaleAccum(IntPtr inImpulseRespnse, float scalar, IntPtr outImpulseResponse);
 
         // Reconstructor API
 
@@ -1789,28 +1621,28 @@ namespace SteamAudio
         [DllImport(Library)]
 
 #endif
-        public static extern Error iplReconstructorCreate(nint context, ref ReconstructorSettings settings, out nint reconstructor);
+        public static extern Error iplReconstructorCreate(IntPtr context, ref ReconstructorSettings settings, out IntPtr reconstructor);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern nint iplReconstructorRetain(nint reconstructor);
+        public static extern IntPtr iplReconstructorRetain(IntPtr reconstructor);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplReconstructorRelease(ref nint reconstructor);
+        public static extern void iplReconstructorRelease(ref IntPtr reconstructor);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport(Library)]
 #endif
-        public static extern void iplReconstructorReconstruct(nint reconstructor, int numInputs, ref ReconstructorInputs inputs, ref ReconstructorSharedInputs sharedInputs, ref ReconstructorOutputs outputs);
+        public static extern void iplReconstructorReconstruct(IntPtr reconstructor, int numInputs, ref ReconstructorInputs inputs, ref ReconstructorSharedInputs sharedInputs, ref ReconstructorOutputs outputs);
 
         // UNITY PLUGIN
 
@@ -1819,7 +1651,7 @@ namespace SteamAudio
 #else
         [DllImport("audioplugin_phonon")]
 #endif
-        public static extern void iplUnityInitialize(nint context);
+        public static extern void iplUnityInitialize(IntPtr context);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
@@ -1833,7 +1665,7 @@ namespace SteamAudio
 #else
         [DllImport("audioplugin_phonon")]
 #endif
-        public static extern void iplUnitySetHRTF(nint hrtf);
+        public static extern void iplUnitySetHRTF(IntPtr hrtf);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
@@ -1847,14 +1679,14 @@ namespace SteamAudio
 #else
         [DllImport("audioplugin_phonon")]
 #endif
-        public static extern void iplUnitySetReverbSource(nint reverbSource);
+        public static extern void iplUnitySetReverbSource(IntPtr reverbSource);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
 #else
         [DllImport("audioplugin_phonon")]
 #endif
-        public static extern int iplUnityAddSource(nint source);
+        public static extern int iplUnityAddSource(IntPtr source);
 
 #if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         [DllImport("__Internal")]
